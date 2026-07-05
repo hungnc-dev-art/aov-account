@@ -43,14 +43,7 @@ export function AccountCard({
   return (
     <article className="account-card">
       <div className="account-card__top">
-        <div>
-          <p className="account-name">{account.nickname || account.username}</p>
-          <div className="meta">
-            {account.rank && <span>{account.rank}</span>}
-            {account.level && <span>Lv.{account.level}</span>}
-            {account.gold && <span>{account.gold} vàng</span>}
-          </div>
-        </div>
+        <p className="account-name">{account.nickname || account.username}</p>
         <div className="card-actions">
           <button className="icon-button" onClick={onEdit} aria-label="Sửa tài khoản">
             <Pencil size={17} />
@@ -118,12 +111,6 @@ export function AccountCard({
           {remaining > 0 && <span className="more-heroes">+{remaining}</span>}
         </div>
       </div>
-      {(account.status || account.note) && (
-        <p className="account-note">
-          {account.status && <span>{account.status}</span>}
-          {account.note}
-        </p>
-      )}
     </article>
   )
 }

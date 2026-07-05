@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Search, X } from 'lucide-react'
 import type { Account, AccountDraft } from '../types'
 import { heroes } from '../data/heroes'
@@ -32,6 +32,20 @@ export function AccountForm({ account, open, onClose, onSave }: AccountFormProps
   )
   const [heroQuery, setHeroQuery] = useState('')
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+
+    const previousBodyOverflow = document.body.style.overflow
+    const previousHtmlOverflow = document.documentElement.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflow = previousHtmlOverflow
+    }
+  }, [open])
 
   const filteredHeroes = useMemo(() => {
     const normalizedQuery = normalizeText(heroQuery)
@@ -123,7 +137,6 @@ export function AccountForm({ account, open, onClose, onSave }: AccountFormProps
               <legend>
                 <span className="field-label">
                   Danh sách tướng
-                  <span className="required-mark" aria-hidden="true">*</span>
                 </span>
               </legend>
               <span>{draft.heroes.length} tướng đã chọn</span>

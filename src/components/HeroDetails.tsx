@@ -76,13 +76,24 @@ export function HeroDetails({ hero, accounts, onClose }: HeroDetailsProps) {
             </div>
           </div>
           {accounts.length ? (
-            <div className="hero-owner-list">
-              {accounts.map((account) => (
-                <HeroOwnerAccount
-                  account={account}
-                  key={account.id ?? account.username}
-                />
-              ))}
+            <div className="hero-owner-table-wrap">
+              <table className="hero-owner-table" aria-label={`Tài khoản sở hữu ${hero.name}`}>
+                <thead>
+                  <tr>
+                    <th scope="col">Tên tài khoản</th>
+                    <th scope="col">Username</th>
+                    <th scope="col">Password</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {accounts.map((account) => (
+                    <HeroOwnerAccount
+                      account={account}
+                      key={account.id ?? account.username}
+                    />
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : (
             <p className="hero-owner-empty">
