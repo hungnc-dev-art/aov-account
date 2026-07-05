@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Account {
+  id                  Int      @id @default(autoincrement())
+  username            String   @unique
+  password            String   @default("")
+  nickname            String   @default("")
+  gold                String   @default("")
+  level               String   @default("")
+  rank                String   @default("")
+  status              String   @default("")
+  heroes              String[] @default([])
+  heroNamesNormalized String[] @default([])
+  note                String   @default("")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([updatedAt])
+}
