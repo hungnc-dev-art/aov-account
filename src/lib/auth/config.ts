@@ -12,8 +12,9 @@ export interface AuthConfig {
 
 /** Trả `null` khi thiếu hoặc sai cấu hình → mọi route bảo vệ đều từ chối (fail closed). */
 export function getAuthConfig(): AuthConfig | null {
-  const secret = process.env.AUTH_SESSION_SECRET ?? ''
-  const ownerPasswordHash = process.env.AUTH_OWNER_PASSWORD_HASH ?? ''
+  // Trim: giá trị dán/pipe vào Vercel CLI có thể kèm xuống dòng.
+  const secret = (process.env.AUTH_SESSION_SECRET ?? '').trim()
+  const ownerPasswordHash = (process.env.AUTH_OWNER_PASSWORD_HASH ?? '').trim()
   if (secret.length < MIN_SECRET_LENGTH || !ownerPasswordHash.startsWith('scrypt$')) return null
   return { secret, ownerPasswordHash }
 }

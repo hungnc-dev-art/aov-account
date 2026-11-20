@@ -61,6 +61,17 @@ describe('POST /api/auth/login', () => {
     expect((await login(loginRequest(PASSWORD, { ip: '198.51.100.9' }))).status).toBe(200)
   })
 
+  it('tolerates trailing newlines in env values pasted into Vercel', async () => {
+    const savedHash = process.env.AUTH_OWNER_PASSWORD_HASH
+    const savedSecret = process.env.AUTH_SESSION_SECRET
+    process.env.AUTH_OWNER_PASSWORD_HASH = `${savedHash}\r\n`
+    process.env.AUTH_SESSION_SECRET = `${savedSecret}\n`
+    const response = await login(loginRequest(PASSWORD, { ip: '192.0.2.99' }))
+    process.env.AUTH_OWNER_PASSWORD_HASH = savedHash
+    process.env.AUTH_SESSION_SECRET = savedSecret
+    expect(response.status).toBe(200)
+  })
+
   it('fails closed when auth is not configured', async () => {
     const saved = process.env.AUTH_OWNER_PASSWORD_HASH
     delete process.env.AUTH_OWNER_PASSWORD_HASH
