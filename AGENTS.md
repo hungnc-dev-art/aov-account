@@ -8,8 +8,9 @@ account Liên Quân, tra cứu tướng và tìm các account sở hữu từng 
 - Dữ liệu account được lưu trong Neon Postgres và truy cập bằng Prisma.
 - Danh mục tướng, kỹ năng và ảnh là dữ liệu tĩnh nằm trong repository.
 - Trình duyệt chỉ giao tiếp với database thông qua API Route Handler.
-- Ứng dụng hiện chưa có xác thực hoặc phân quyền. Không triển khai công khai dữ
-  liệu account thật trước khi bổ sung lớp bảo vệ phù hợp.
+- Ứng dụng có xác thực chủ sở hữu (owner session): mọi trang và API account đều
+  yêu cầu phiên hợp lệ, kiểm tra tại từng Route Handler. Không nới lỏng lớp bảo
+  vệ này; xem `.claude/skills/account-security/SKILL.md`.
 
 Mọi thay đổi phải ưu tiên tính đúng đắn của dữ liệu account, không làm lộ thông
 tin đăng nhập và giữ trải nghiệm tốt trên cả desktop lẫn mobile.
@@ -21,18 +22,23 @@ Khi làm việc trong repository, đọc và áp dụng theo thứ tự sau:
 1. Yêu cầu hiện tại của người dùng.
 2. File `AGENTS.md` này.
 3. Tài liệu ngữ cảnh trong `.agents/context/`.
-4. Hướng dẫn nghiệp vụ phù hợp trong `.agents/skills/`.
+4. Hướng dẫn nghiệp vụ phù hợp trong `.claude/skills/<skill>/SKILL.md`.
 5. Code và test hiện có trong repository.
 
 Các tài liệu nội bộ quan trọng:
 
 - `.agents/context/product.md`: mục tiêu sản phẩm và luồng sử dụng chính.
 - `.agents/context/data-model.md`: mô hình Account, Hero và quy tắc normalize.
-- `.agents/skills/account-crud.md`: quy tắc CRUD account.
-- `.agents/skills/import-excel.md`: các định dạng Excel và quy tắc import.
-- `.agents/skills/hero-catalog.md`: cấu trúc catalog và liên kết account–hero.
-- `.agents/skills/update-hero-data.md`: quy trình cập nhật dữ liệu tướng.
-- `.agents/skills/deploy-vercel-neon.md`: Prisma, Neon và triển khai Vercel.
+- `.claude/skills/account-crud/SKILL.md`: quy trình CRUD account và API.
+- `.claude/skills/import-excel/SKILL.md`: các định dạng Excel, import và export.
+- `.claude/skills/hero-catalog/SKILL.md`: catalog, cập nhật dữ liệu tướng và
+  liên kết account–hero.
+- `.claude/skills/neon-prisma/SKILL.md`: Prisma, migration, Neon và triển khai Vercel.
+- `.claude/skills/account-security/SKILL.md`: checklist review bảo mật và dữ liệu.
+- `.claude/skills/aov-testing/SKILL.md`: chạy/viết test và xác minh trước bàn giao.
+
+Các file trên là Markdown thường, agent nào cũng đọc được. `.agents/skills/*.md`
+chỉ còn là con trỏ tới các file này để giữ tương thích đường dẫn cũ.
 
 Chỉ đọc file `.env.local` khi thực sự cần kiểm tra cấu hình. Tuyệt đối không in,
 log, sao chép hoặc đưa giá trị bí mật vào câu trả lời, commit hay tài liệu.
@@ -41,16 +47,24 @@ log, sao chép hoặc đưa giá trị bí mật vào câu trả lời, commit h
 
 Ứng dụng dùng Next.js App Router với TypeScript:
 
-- `app/`: page, layout và API Route Handler phía server.
-- `app/api/accounts/`: API đọc, tạo, sửa, xoá và import account.
-- `src/App.tsx`: client shell chính, điều hướng bằng hash, theme và index
+- `app/`: page (`/` kiểm tra phiên ở server, `/login`), layout và API Route Handler.
+- `app/api/accounts/`: API đọc, tạo, sửa, xoá, lấy mật khẩu, xuất và import.
+- `app/api/auth/`: đăng nhập, đăng xuất, kiểm tra phiên, xác thực lại.
+- `proxy.ts`: chặn sớm khi chưa đăng nhập và gắn CSP có nonce (không thay thế
+  kiểm tra tại Route Handler).
+- `src/App.tsx`: gốc ứng dụng client: route hash, tải dữ liệu, dialog, index
   account–hero.
-- `src/components/`: các component UI dùng lại cho catalog, chi tiết tướng,
-  quản lý account và import.
-- `src/lib/account-api.ts`: lớp gọi API từ Client Component.
-- `src/lib/accounts.ts`: validate, chuẩn hoá input và serialize Account.
+- `src/components/`: component Graphite Command (shell, catalog, hero-drawer,
+  accounts, account-form, excel-dialogs, command-palette, reauth, ui, overlay,
+  toast, LoginForm). Quy ước UI: `.claude/skills/aov-design-system/SKILL.md`.
+- `src/styles/`: token và CSS của design system (`index.css` import tất cả).
+- `src/lib/auth/`: phiên ký HMAC, hash scrypt, guard, rate limit (server).
+- `src/lib/http.ts`: phản hồi JSON và xử lý lỗi an toàn cho Route Handler.
+- `src/lib/import-service.ts`: import merge / create-only / replace trong transaction.
+- `src/lib/account-api.ts`: lớp gọi API từ Client Component (`ApiError`).
+- `src/lib/accounts.ts`: validate, chuẩn hoá input và serialize Account (không kèm mật khẩu).
 - `src/lib/prisma.ts`: Prisma Client dùng `PrismaNeon`, chỉ dành cho server.
-- `src/lib/legacy-indexed-db.ts`: migrate một lần dữ liệu IndexedDB cũ lên API.
+- `src/lib/legacy-indexed-db.ts`: migrate một lần IndexedDB cũ lên API (create-only).
 - `src/utils/normalize.ts`: nguồn duy nhất cho normalize và tách tên tướng.
 - `src/utils/excel.ts`: parse/export Excel ở browser.
 - `src/types.ts`: nguồn sự thật cho các type nghiệp vụ dùng chung.
@@ -58,11 +72,13 @@ log, sao chép hoặc đưa giá trị bí mật vào câu trả lời, commit h
 - `prisma/schema.prisma`: schema database chuẩn.
 - `prisma/migrations/`: migration phải được commit cùng thay đổi schema.
 - `public/heroes/`: avatar và icon kỹ năng tướng được phục vụ dạng static.
-- `scripts/`: script cập nhật và kiểm tra dữ liệu tướng.
+- `scripts/`: cập nhật/kiểm tra dữ liệu tướng, `auth-setup.mjs` (sinh secret và
+  hash mật khẩu chủ sở hữu), `qa/` (QA end-to-end bằng Chrome DevTools Protocol).
+- `test/`: test Route Handler, auth, import, logic client (Vitest, mock Prisma).
 
 Không sửa thủ công `src/generated/prisma/`; thư mục này do `prisma generate` tạo
-và đã được ignore khỏi Git. Không khôi phục persistence cũ trong
-`src/db/database.ts`; account hiện phải lưu qua Neon.
+và đã được ignore khỏi Git. Account chỉ được lưu qua Neon (không dùng lại
+persistence IndexedDB cũ).
 
 ## 4. Lệnh phát triển và kiểm tra
 
@@ -99,8 +115,12 @@ Không chạy `prisma migrate dev` trong Vercel build. `npm run db:deploy` chỉ
 ## 5. Database, Prisma và biến môi trường
 
 - Runtime server phải lấy chuỗi kết nối từ `process.env.DATABASE_URL`.
+- Xác thực cần `AUTH_SESSION_SECRET` (≥ 32 ký tự ngẫu nhiên) và
+  `AUTH_OWNER_PASSWORD_HASH` (scrypt), sinh bằng `node scripts/auth-setup.mjs`.
+  Thiếu một trong hai → app từ chối mọi truy cập (fail closed).
 - Local dùng `.env.local`; Vercel dùng Environment Variables cho Development,
-  Preview và Production.
+  Preview và Production. Hiện Preview và Production dùng chung một
+  `DATABASE_URL`: không chạy thao tác ghi thử nghiệm trên Preview.
 - `.env.example` chỉ được chứa placeholder, không chứa host, username, password
   hoặc database thật.
 - Không đặt connection string dưới tên có tiền tố `NEXT_PUBLIC_`.
@@ -161,13 +181,22 @@ database.
 
 Các endpoint hiện có:
 
-- `GET /api/accounts`: trả danh sách theo `updatedAt` giảm dần; hỗ trợ query
-  `?hero=` đã normalize.
-- `POST /api/accounts`: tạo account mới.
-- `PUT /api/accounts/:id`: cập nhật account theo ID nguyên dương.
+Mọi endpoint account yêu cầu phiên chủ sở hữu; request ghi phải cùng origin và
+`Content-Type: application/json`.
+
+- `GET /api/accounts`: danh sách theo `updatedAt` giảm dần, **không kèm mật khẩu**
+  (chỉ `hasPassword`); hỗ trợ query `?hero=`.
+- `GET /api/accounts/:id/password`: mật khẩu của một tài khoản khi người dùng
+  bấm xem/sao chép (`no-store`).
+- `POST /api/accounts`: tạo account; username trùng (không phân biệt hoa/thường) → 409.
+- `PUT /api/accounts/:id`: cập nhật; trường không gửi (kể cả `password`) giữ nguyên.
 - `DELETE /api/accounts/:id`: xoá account theo ID nguyên dương.
-- `POST /api/accounts/import`: upsert theo `username`; chế độ replace chạy trong
-  cùng Prisma transaction.
+- `POST /api/accounts/export`: dữ liệu cho file Excel; `includePasswords` cần đã
+  xác thực lại trong 5 phút.
+- `POST /api/accounts/import`: `mode` = `merge` | `create-only` | `replace`;
+  replace cần xác thực lại + cụm "THAY THẾ" + `expectedCount`, chạy trong một
+  transaction có khoá bảng.
+- `POST /api/auth/login|logout|reauth`, `GET /api/auth/session`.
 
 Khi thêm hoặc sửa endpoint:
 
@@ -206,8 +235,8 @@ tạo workbook trong memory tại `src/utils/excel.test.ts`.
 
 - Runtime catalog được export từ `src/data/heroes.ts`.
 - Dữ liệu crawl/generated nằm trong `src/data/heroes.generated.ts`.
-- Điều chỉnh thủ công tách riêng trong `src/data/heroes.manual.ts` nếu luồng hiện
-  tại hỗ trợ.
+- `src/data/heroes.manual.ts` là seed cũ, hiện **không** được import ở runtime.
+  Muốn điều chỉnh thủ công phải bổ sung bước merge rõ ràng trong `heroes.ts`.
 - Không sửa trực tiếp file generated; dùng `npm run heroes:update`.
 - Ảnh và icon phải nằm dưới `public/heroes/<hero-id>/` và được lazy-load ở UI.
 - `id` phải ổn định; `normalizedName` phải sinh bằng `normalizeText(name)`.
@@ -236,9 +265,11 @@ Sau khi cập nhật dữ liệu tướng, bắt buộc chạy `npm run heroes:c
 
 - Thiết kế mobile-first, sau đó kiểm tra desktop.
 - Mọi thay đổi style phải hoạt động đúng ở cả light theme và dark theme.
-- Theme hiện được điều khiển bằng `document.documentElement.dataset.theme` và
-  lưu tại `localStorage` với key `aov-theme`.
-- Ưu tiên class CSS có ý nghĩa trong `src/style.css`; tránh style inline lặp lại.
+- Theme điều khiển bằng `document.documentElement.dataset.theme`, lưu tại
+  `localStorage` key `aov-theme` (`dark` | `light` | `system`, mặc định `dark`),
+  áp dụng trước render bằng script boot có nonce (`src/lib/theme.ts`).
+- Dùng token và class của design system trong `src/styles/`; tránh màu/khoảng
+  cách viết tay và style inline lặp lại.
 - Giữ nút chạm đủ lớn, nội dung modal/bottom sheet cuộn được trên màn hình nhỏ.
 - Nút chỉ có icon phải có `aria-label`; form control phải có label accessible.
 - Không dùng màu làm tín hiệu duy nhất cho trạng thái hoặc lỗi.

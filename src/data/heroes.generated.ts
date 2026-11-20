@@ -1251,6 +1251,38 @@ export const generatedHeroes = [
     ]
   },
   {
+    "id": "evita",
+    "name": "Evita",
+    "normalizedName": "evita",
+    "roles": [
+      "Pháp sư"
+    ],
+    "imageUrl": "/heroes/evita/avatar.jpg",
+    "sourceUrl": "https://lienquan.garena.vn/hoc-vien/tuong-skin/d/evita/",
+    "skills": [
+      {
+        "name": "Ma lực hắc ám",
+        "description": "Evita sẽ chuyển hóa Ma lực hắc ám theo thời gian. Khi tích đầy ma lực, lần kế tiếp tung chiêu trúng mục tiêu sẽ tiêu hao toàn bộ ma lực khiến Ma vật hỗn mang lao tới mục tiêu gây sát thương phép đồng thời giúp bản thân nhận lá chắn",
+        "iconUrl": "/heroes/evita/skill-1.png"
+      },
+      {
+        "name": "Bộc phá hắc ám",
+        "description": "Evita thả Ma vật hỗn mang hướng về phía chỉ định. Khi trúng kẻ địch hoặc bay đến vị trí xa nhất, nó sẽ phát nổ và bắn các đạn năng lượng ra xung quanh gây sát thương",
+        "iconUrl": "/heroes/evita/skill-2.png"
+      },
+      {
+        "name": "Quyền lực hắc ám",
+        "description": "Evita triệu hồi Vết nứt bản nguyên trên mặt đất. Sau một khoảng trễ ngắn, Ma lực hắc ám bùng phát, gây sát thương và làm chậm kẻ địch. Nạn nhân ở vùng trung tâm còn phải chịu sát thương cao hơn kèm bị hất tung.",
+        "iconUrl": "/heroes/evita/skill-3.png"
+      },
+      {
+        "name": "Triệu hồi hắc ám",
+        "description": "Evita nhận lá chắn và triệu hồi Ma vật hỗn mang tạo thành một lần Ma vật xung kích gây hiệu ứng làm chậm cho kẻ địch. Sau đó, Ma vật sẽ tiến vào trạng thái tự tìm mục tiêu để tấn công. Trong thời gian này, tốc độ chuyển hóa Ma lực hắc ám tăng mạnh; mỗi lần Ma vật hỗn mang chạm vào kẻ địch, nó sẽ gây sát thương và giảm giáp phép mục tiêu đồng thời mang đến lá chắn cho Evita.",
+        "iconUrl": "/heroes/evita/skill-4.png"
+      }
+    ]
+  },
+  {
     "id": "fennik",
     "name": "Fennik",
     "normalizedName": "fennik",
@@ -2640,23 +2672,23 @@ export const generatedHeroes = [
     "sourceUrl": "https://lienquan.garena.vn/hoc-vien/tuong-skin/d/preyta/",
     "skills": [
       {
-        "name": "Rồng dịch bênh",
-        "description": "Preyta: Vật cưỡi giúp tăng tốc chạy của Preyta.",
+        "name": "Dịch bệnh truyền nhiễm",
+        "description": "Khi chiêu của Preyta trúng kẻ địch, sẽ cộng dồn tầng dịch bệnh lên chúng. Dịch bệnh sẽ gây sát thương liên tục; khi cộng đủ 3 tầng sẽ phát nổ, gây một lần sát thương phạm vi. Đồng thời, khi chiêu của Preyta trúng tướng địch hoặc hạ lính và quái rừng, hắn cũng sẽ nhận được năng lượng dịch bệnh. Năng lượng dịch bệnh sẽ tăng công phép của Preyta và tiến hóa vĩnh viễn chiêu của hắn – năng lượng cộng dồn càng nhiều, chiêu càng mạnh.",
         "iconUrl": "/heroes/preyta/skill-1.png"
       },
       {
-        "name": "Hơi độc hại",
-        "description": "\"Preyta niệm chú 2 giây tập trung toàn bộ năng lượng để phát tán dịch bệnh theo hướng chỉ định. Trong thời gian này nếu thức hiện bất kỳ động tác gì khác sẽ khiến chiêu thức được kích hoạt ngay lập tức, gây sát thương phép. Khi Preyta trong trạng thái Siêu khuẩn, hắn để lại một cái bóng niệm chú hộ.\"",
+        "name": "Dịch bệnh bùng phát",
+        "description": "Preyta cường hóa bản thân và nhận trạng thái đánh thường cường hóa kéo dài 4 giây. Trong trạng thái cường hóa, Preyta sẽ được tăng tốc đánh, mở rộng tầm đánh, tăng tốc chạy đồng thời mỗi ba đòn đánh thường sẽ gây sát thương phạm vi. 25 tầng dịch bệnh: Preyta cường hóa bản thân khiến các đòn đánh thường tiếp theo đều chuyển thành sát thương phạm vi.",
         "iconUrl": "/heroes/preyta/skill-2.png"
       },
       {
-        "name": "Bom hoại tử",
-        "description": "\"Preyta tạo ra một vụ nổ dịch bệnh đẩy lùi kẻ địch trong vùng ảnh hưởng, gây sát thương phép kèm hiệu ứng làm chậm. Trong trạng thái Siêu khuẩn, vụ nổ còn gây kèm hiệu ứng làm choáng.\"",
+        "name": "Pháp trận hoại tử",
+        "description": "Preyta tung pháp trận tại vị trí chỉ định gây sát thương lên kẻ địch trúng chiêu và khiến chúng bị làm chậm. Sau 1 giây, gây sát thương và hất tung kẻ địch. 75 tầng năng lượng dịch bệnh: Tăng phạm vi chiêu.",
         "iconUrl": "/heroes/preyta/skill-3.png"
       },
       {
-        "name": "Dịch Hạch",
-        "description": "\"Preyta tiến vào trạng thái Siêu khuẩn, tạo lá chắn, làm mới hồi chiêu và cường hóa Hơi độc hại và Bom hoại tử kế tiếp. Trong thời gian hiệu lực, Preyta còn được tăng tầm đánh, tốc chạy, tốc đánh và khiến đòn đánh thường gây thêm sát thương phép diện rộng.\"",
+        "name": "Làn sóng dịch bệnh",
+        "description": "Preyta tụ năng lượng dịch bệnh về hướng chỉ định và phóng ra ba làn sóng xung kích về phía trước gây sát thương phép. Di chuyển hoặc tái kích hoạt Chiêu 3 sẽ lập tức phóng sóng xung kích; thời gian tụ lực ảnh hưởng đến khoảng cách của sóng xung kích (tối đa 1800). 145 tầng năng lượng dịch bệnh: Chiêu cuối có thể vừa di chuyển vừa thi triển, vừa đi vừa đánh, tung chiêu linh hoạt hơn.",
         "iconUrl": "/heroes/preyta/skill-4.png"
       }
     ]
@@ -3165,6 +3197,38 @@ export const generatedHeroes = [
         "name": "Long Toái",
         "description": "Tachi nhanh chóng biến trên đầu đến vị trí mục tiêu và tung ra 2 đòn thập tự trảm. Mỗi luồng đao khí gây sát thương vật lý và làm chậm mục tiêu. Lần vung đao thứ 3 sẽ khiến tất cả mục tiêu trong phạm vi phải chịu sát thương vật lý. Khi đáp đất Tachi lập tức được mở phong ấn.",
         "iconUrl": "/heroes/tachi/skill-4.png"
+      }
+    ]
+  },
+  {
+    "id": "tamyn",
+    "name": "Tamyn",
+    "normalizedName": "tamyn",
+    "roles": [
+      "Đấu sĩ"
+    ],
+    "imageUrl": "/heroes/tamyn/avatar.jpg",
+    "sourceUrl": "https://lienquan.garena.vn/hoc-vien/tuong-skin/d/tamyn/",
+    "skills": [
+      {
+        "name": "Thánh Thương Quang Minh",
+        "description": "Sau khi nhặt đoản thương, đòn đánh thường của Tamyn sẽ được cường hóa trong 4 giây, tối đa cộng dồn 2 lần, đồng thời tăng 20 – 40 tốc chạy trong 4 giây và đạt giá trị tối đa sau 2 giây. Đòn đánh thường cường hóa gây thêm 200 +14/cấp tướng +0.3 công vật lý cộng thêm sát thương vật lý, đồng thời giảm 1 giây hồi chiêu của tất cả kỹ năng. Mỗi lần nhặt hoặc thu hồi đoản thương, Tamyn hồi 100 +7/cấp tướng +2% máu cộng thêm máu. Nếu đòn đánh thường cường hóa trúng mục tiêu, lượng hồi phục này sẽ được tăng gấp đôi. Mỗi lần tung chiêu, Tamyn nhận 2% tốc chạy trong 5 giây, tối đa cộng dồn 3 lần. Ngoài ra, toàn bộ tốc chạy cộng thêm sẽ được chuyển hóa tương ứng thành sát thương cho các kỹ năng và đòn đánh thường cường hóa. Sau khi tồn tại 5 giây, đoản thương sẽ tự động quay về.",
+        "iconUrl": "/heroes/tamyn/skill-1.png"
+      },
+      {
+        "name": "Thương Phá Tầng Không",
+        "description": "Tamyn phóng đoản thương theo hướng chỉ định, gây 350 +70/cấp chiêu +1.4 công vật lý cộng thêm sát thương vật lý. Đoản thương sẽ cắm xuống vị trí phía sau mục tiêu trong 10 giây. Nếu hạ gục mục tiêu, đoản thương sẽ tiếp tục bay thêm một đoạn ngắn và gây thêm 50% sát thương lên các mục tiêu tiếp theo.",
+        "iconUrl": "/heroes/tamyn/skill-2.png"
+      },
+      {
+        "name": "Thương Chiếu Hoàng Hôn",
+        "description": "Tamyn triệu hồi một đoản thương từ trên trời ghim xuống tại vị trí chỉ định, kéo dài 10 giây, gây 300 +60/cấp chiêu +1.2 công vật lý cộng thêm sát thương vật lý lên kẻ địch trong phạm vi và làm chậm % tốc chạy của chúng trong 2 giây.",
+        "iconUrl": "/heroes/tamyn/skill-3.png"
+      },
+      {
+        "name": "Thánh Thương Quy Tụ",
+        "description": "Tamyn triệu hồi một đoản thương bay về phía bản thân và gây 150 +150/cấp chiêu +0.85 công vật lý cộng thêm sát thương vật lý cho kẻ địch trên đường đi. Tăng cấp chiêu cuối có thể tăng giới hạn sử dụng, tối đa 4 lần.",
+        "iconUrl": "/heroes/tamyn/skill-4.png"
       }
     ]
   },

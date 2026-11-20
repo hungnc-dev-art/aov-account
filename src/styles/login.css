@@ -1,0 +1,28 @@
+/* ================= Login ================= */
+.login-shell {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
+  background: var(--hero-glow), var(--bg);
+}
+.login-card {
+  width: min(420px, 100%);
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface-1);
+  background-image: var(--highlight);
+  box-shadow: var(--shadow-3);
+  animation: dialog-in var(--duration-slow) var(--ease-out);
+}
+.login-brand { display: flex; align-items: center; gap: var(--space-3); }
+.login-brand .brand__mark { width: 40px; height: 40px; }
+.login-titles { display: grid; gap: var(--space-2); }
+.login-form { display: grid; gap: var(--space-4); }
+.login-foot { text-align: center; }
+@media (min-width: 640px) {
+  .login-card { padding: var(--space-10) var(--space-8); }
+}

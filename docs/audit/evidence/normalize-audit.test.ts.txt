@@ -1,0 +1,85 @@
+import { describe, expect, it } from 'vitest'
+import * as XLSX from 'xlsx'
+import { normalizeAccountInput } from '../lib/accounts'
+import { parseWorkbook } from '../utils/excel'
+import { normalizeText, splitHeroes } from '../utils/normalize'
+import type { Account } from '../types'
+
+function buildIndex(accounts: Pick<Account, 'username' | 'heroNamesNormalized'>[]) {
+  // Sao chép logic accountByHero trong src/App.tsx:69-79
+  const index = new Map<string, typeof accounts>()
+  for (const account of accounts) {
+    for (const heroName of account.heroNamesNormalized) {
+      const owners = index.get(heroName)
+      if (owners) owners.push(account)
+      else index.set(heroName, [account])
+    }
+  }
+  return index
+}
+
+const workbookOf = (rows: unknown[][]) => {
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), 'Accounts')
+  return workbook
+}
+
+describe('audit: normalize hero ở server', () => {
+  it('giữ các biến thể trùng sau normalize', () => {
+    const result = normalizeAccountInput({ username: 'fixture-user', heroes: ['Lữ Bố', 'lu bo', 'LỮ BỐ'] })
+    console.log('heroes', result.heroes, 'normalized', result.heroNamesNormalized)
+    expect(result.heroNamesNormalized).toEqual(['lu bo', 'lu bo', 'lu bo'])
+  })
+
+  it('index account–hero đếm một account nhiều lần', () => {
+    const account = normalizeAccountInput({ username: 'fixture-user', heroes: ['Lữ Bố', 'lu bo'] })
+    const owners = buildIndex([account]).get('lu bo') ?? []
+    console.log('owners of lu bo', owners.length)
+    expect(owners).toHaveLength(2)
+  })
+
+  it('chấp nhận tên hero chỉ gồm ký tự đặc biệt, normalized rỗng', () => {
+    const result = normalizeAccountInput({ username: 'fixture-user', heroes: ['!!!'] })
+    console.log('normalized of !!!', JSON.stringify(result.heroNamesNormalized))
+    expect(result.heroNamesNormalized).toEqual([''])
+    expect(splitHeroes('!!!')).toEqual([])
+  })
+
+  it('khoảng trắng giữa tên không được gộp ở server', () => {
+    const result = normalizeAccountInput({ username: 'fixture-user', heroes: ['Ngộ  Không'] })
+    console.log('stored display', JSON.stringify(result.heroes))
+    expect(result.heroes).toEqual(['Ngộ  Không'])
+  })
+})
+
+describe('audit: form chọn tướng so khớp chính xác', () => {
+  it('hero import viết thường không được đánh dấu', () => {
+    const draftHeroes = ['dieu thuyen']
+    const catalogName = 'Điêu Thuyền'
+    expect(draftHeroes.includes(catalogName)).toBe(false)
+    expect(normalizeText(draftHeroes[0])).toBe(normalizeText(catalogName))
+  })
+})
+
+describe('audit: loại trùng username khi import', () => {
+  it('gộp username chỉ khác dấu câu / dấu tiếng Việt / hoa thường', () => {
+    const result = parseWorkbook(
+      workbookOf([
+        ['username', 'password', 'heroes'],
+        ['fixture.a', 'p1', 'Nakroth'],
+        ['fixture-a', 'p2', 'Krixi'],
+        ['Fixture_A', 'p3', 'Krixi'],
+        ['tài.khoản', 'p4', 'Krixi'],
+        ['tai-khoan', 'p5', 'Krixi'],
+      ]),
+    )
+    console.log('kept', result.accounts.map((a) => a.username), 'errors', result.errors)
+    expect(result.accounts.map((a) => a.username)).toEqual(['fixture.a', 'tài.khoản'])
+  })
+
+  it('server coi username khác hoa thường là hai account', () => {
+    const first = normalizeAccountInput({ username: 'FixtureUser', heroes: ['Nakroth'] })
+    const second = normalizeAccountInput({ username: 'fixtureuser', heroes: ['Nakroth'] })
+    expect(first.username === second.username).toBe(false)
+  })
+})

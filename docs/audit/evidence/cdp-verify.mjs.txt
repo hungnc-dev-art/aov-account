@@ -1,0 +1,225 @@
+// Kiểm chứng lỗi UI qua Chrome DevTools Protocol. Chỉ dùng dữ liệu giả.
+// Usage: node cdp-verify.mjs <debugPort> <appOrigin> <fakeXlsxPath>
+const [port, origin, xlsxPath] = process.argv.slice(2)
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json()
+const ws = new WebSocket(target.webSocketDebuggerUrl)
+await new Promise((r) => (ws.onopen = r))
+let seq = 0
+const pending = new Map()
+const listeners = new Set()
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data)
+  if (msg.id && pending.has(msg.id)) {
+    const { resolve, reject } = pending.get(msg.id)
+    pending.delete(msg.id)
+    msg.error ? reject(new Error(JSON.stringify(msg.error))) : resolve(msg.result)
+  } else listeners.forEach((fn) => fn(msg))
+}
+const send = (method, params = {}) =>
+  new Promise((resolve, reject) => {
+    const id = ++seq
+    pending.set(id, { resolve, reject })
+    ws.send(JSON.stringify({ id, method, params }))
+  })
+const evaluate = async (expression) => {
+  const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })
+  if (result.exceptionDetails) return { evalError: result.exceptionDetails.exception?.description ?? result.exceptionDetails.text }
+  return result.result.value
+}
+
+const exceptions = []
+const requests = []
+let mock = null // (url, method) => {status, body} | null (pass through)
+listeners.add(async (msg) => {
+  if (msg.method === 'Runtime.exceptionThrown') {
+    exceptions.push(msg.params.exceptionDetails.exception?.description?.split('\n')[0] ?? msg.params.exceptionDetails.text)
+  }
+  if (msg.method === 'Fetch.requestPaused') {
+    const { requestId, request } = msg.params
+    requests.push(`${request.method} ${new URL(request.url).pathname}`)
+    const response = mock?.(request.url, request.method)
+    if (response) {
+      await send('Fetch.fulfillRequest', {
+        requestId,
+        responseCode: response.status,
+        responseHeaders: [{ name: 'content-type', value: 'application/json' }],
+        body: Buffer.from(JSON.stringify(response.body)).toString('base64'),
+      })
+    } else {
+      await send('Fetch.continueRequest', { requestId })
+    }
+  }
+})
+
+await send('Runtime.enable')
+await send('Page.enable')
+await send('Fetch.enable', { patterns: [{ urlPattern: '*/api/accounts*', requestStage: 'Request' }] })
+
+const fakeAccount = {
+  id: 1, username: 'fixture-user-01', password: 'fixture-pass', nickname: 'Fixture 01',
+  gold: '', level: '', rank: '', status: '', heroes: ['Nakroth'], heroNamesNormalized: ['nakroth'],
+  note: '', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
+}
+const listOk = (url, method) =>
+  method === 'GET' && new URL(url).pathname === '/api/accounts' ? { status: 200, body: { accounts: [fakeAccount] } } : null
+
+async function reset() {
+  mock = null
+  exceptions.length = 0
+  requests.length = 0
+  await send('Page.navigate', { url: `${origin}/favicon.svg` })
+  await sleep(800)
+  await send('Storage.clearDataForOrigin', { origin, storageTypes: 'all' })
+}
+async function open(hash = '') {
+  await send('Page.navigate', { url: `${origin}/${hash}` })
+  await sleep(4000)
+}
+const text = (selector) => `document.querySelector(${JSON.stringify(selector)})?.innerText ?? null`
+const click = (selector) => evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return 'NOT FOUND'; el.click(); return 'clicked' })()`)
+const results = {}
+
+// T1 — Theme sau reload
+await reset()
+await open()
+const before = await evaluate(`({ theme: document.documentElement.dataset.theme, stored: localStorage.getItem('aov-theme') })`)
+await click('.theme-toggle')
+await sleep(500)
+const afterToggle = await evaluate(`({ theme: document.documentElement.dataset.theme, stored: localStorage.getItem('aov-theme') })`)
+await send('Page.reload')
+await sleep(4000)
+const afterReload = await evaluate(`({ theme: document.documentElement.dataset.theme, stored: localStorage.getItem('aov-theme') })`)
+results.T1_theme = { before, afterToggle, afterReload }
+
+// T2 — GET /api/accounts lỗi (server thật, DB giả → 500)
+await reset()
+await open('#accounts')
+results.T2_loadError = {
+  requests: [...requests],
+  heading: await evaluate(text('.management-heading')),
+  body: await evaluate(text('.account-management-page .empty-state')),
+  exceptions: [...exceptions],
+}
+
+// T3 — Lỗi 409 khi tạo account
+await reset()
+mock = (url, method) =>
+  listOk(url, method) ?? (method === 'POST' && new URL(url).pathname === '/api/accounts'
+    ? { status: 409, body: { error: 'Tên đăng nhập đã tồn tại.' } } : null)
+await open('#accounts')
+await click('.management-heading .button--primary')
+await sleep(500)
+await evaluate(`(() => {
+  const input = document.querySelector('.account-form input[required]')
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+  setter.call(input, 'fixture-user-01')
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  document.querySelector('.hero-checkbox input').click()
+})()`)
+await sleep(300)
+exceptions.length = 0
+await click('.account-form .modal-actions .button--primary')
+await sleep(1500)
+results.T3_createConflict = {
+  requests: requests.filter((r) => r.startsWith('POST')),
+  formStillOpen: await evaluate(`Boolean(document.querySelector('.account-form'))`),
+  errorVisible: await evaluate(`document.body.innerText.includes('đã tồn tại')`),
+  submitLabel: await evaluate(text('.account-form .modal-actions .button--primary')),
+  exceptions: [...exceptions],
+}
+
+// T4 — Lỗi 404 khi xoá
+await reset()
+mock = (url, method) =>
+  listOk(url, method) ?? (method === 'DELETE' ? { status: 404, body: { error: 'Không tìm thấy tài khoản.' } } : null)
+await open('#accounts')
+await evaluate(`window.confirm = () => true`)
+exceptions.length = 0
+await click('.icon-button--danger')
+await sleep(1500)
+results.T4_deleteNotFound = {
+  requests: requests.filter((r) => r.startsWith('DELETE')),
+  errorVisible: await evaluate(`document.body.innerText.includes('Không tìm thấy tài khoản')`),
+  cardStillShown: await evaluate(`document.querySelectorAll('.account-card').length`),
+  exceptions: [...exceptions],
+}
+
+// T5 — Checkbox replace giữ trạng thái sau khi đóng/mở dialog
+await reset()
+mock = listOk
+await open('#accounts')
+await click('.management-toolbar .button--secondary')
+await sleep(400)
+await click('.import-dialog .check-row input')
+const tickedFirst = await evaluate(`document.querySelector('.import-dialog .check-row input').checked`)
+await click('.import-dialog .modal-heading .icon-button')
+await sleep(300)
+await click('.management-toolbar .button--secondary')
+await sleep(400)
+results.T5_replaceSticky = {
+  tickedFirst,
+  checkedAfterReopen: await evaluate(`document.querySelector('.import-dialog .check-row input').checked`),
+}
+
+// T6 — Warnings server sau import
+await reset()
+let importBody = null
+mock = (url, method) => {
+  if (method === 'POST' && new URL(url).pathname === '/api/accounts/import') {
+    importBody = 'captured'
+    return { status: 200, body: { imported: 2, warnings: ['Dòng 1 (fixture-import-a) chưa có mật khẩu.'] } }
+  }
+  return listOk(url, method)
+}
+await open('#accounts')
+await click('.management-toolbar .button--secondary')
+await sleep(400)
+const { root } = await send('DOM.getDocument')
+const { nodeId } = await send('DOM.querySelector', { nodeId: root.nodeId, selector: '.import-dialog input[type=file]' })
+await send('DOM.setFileInputFiles', { nodeId, files: [xlsxPath] })
+await sleep(2500)
+const preview = await evaluate(`({ summary: document.querySelector('.import-summary')?.innerText, warnings: document.querySelector('.warning-list summary')?.innerText })`)
+await click('.import-dialog .modal-actions .button--primary')
+await sleep(2000)
+results.T6_importWarnings = {
+  preview,
+  importCalled: importBody,
+  dialogOpenAfter: await evaluate(`Boolean(document.querySelector('.import-dialog'))`),
+  serverWarningVisible: await evaluate(`document.body.innerText.includes('chưa có mật khẩu')`),
+  successMessageVisible: await evaluate(`/import thành công|đã import|imported/i.test(document.body.innerText)`),
+}
+
+// T7 — Migrate IndexedDB cũ thất bại (server thật trả 400 ở bước validate, không tới DB)
+await reset()
+await evaluate(`new Promise((resolve, reject) => {
+  const req = indexedDB.open('AovAccountManager', 1)
+  req.onupgradeneeded = () => req.result.createObjectStore('accounts', { keyPath: 'id', autoIncrement: true })
+  req.onsuccess = () => {
+    const tx = req.result.transaction('accounts', 'readwrite')
+    tx.objectStore('accounts').add({ username: 'legacy-fixture-ok', password: '', heroes: ['Nakroth'] })
+    tx.objectStore('accounts').add({ username: 'legacy-fixture-empty', password: '', heroes: [] })
+    tx.oncomplete = () => { req.result.close(); resolve('seeded') }
+  }
+  req.onerror = () => reject(req.error)
+})`)
+mock = listOk // GET trả 1 account giả; import đi tới server thật (400)
+await open('#accounts')
+const firstLoad = {
+  requests: [...requests],
+  migrationKey: await evaluate(`localStorage.getItem('aov-neon-migration-v1')`),
+  heading: await evaluate(text('.management-heading p')),
+}
+requests.length = 0
+await send('Page.reload')
+await sleep(4000)
+results.T7_legacyMigration = {
+  firstLoad,
+  secondLoadRequests: [...requests],
+  headingAfterReload: await evaluate(text('.management-heading p')),
+}
+
+console.log(JSON.stringify(results, null, 2))
+await send('Target.closeTarget', { targetId: target.id }).catch(() => {})
+ws.close()
