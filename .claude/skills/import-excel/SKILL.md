@@ -1,29 +1,35 @@
 ---
 name: import-excel
-description: Quy trình sửa import/export Excel account — parser SheetJS trong src/utils/excel.ts (ma trận cột, ma trận hàng, bảng phẳng, chọn sheet tốt nhất), ImportDialog, POST /api/accounts/import (upsert theo username, chế độ replace trong transaction) và exportAccountsToExcel. Dùng khi thêm định dạng Excel mới, sửa nhận diện header/marker, xử lý cảnh báo import, sửa chế độ gộp/thay thế dữ liệu hoặc file export.
+description: Quy trình sửa import/export Excel account — parser SheetJS trong src/utils/excel.ts (ma trận cột, ma trận hàng, bảng phẳng, chọn sheet tốt nhất, kiểm tra file), wizard nhập ImportWizard và ExportDialog (src/components/excel-dialogs.tsx), POST /api/accounts/import (merge / create-only / replace có xác nhận trong transaction) và POST /api/accounts/export. Dùng khi thêm định dạng Excel mới, sửa nhận diện header/marker, xử lý cảnh báo import, sửa chế độ gộp/thay thế dữ liệu hoặc file export.
 ---
 
 # Import/Export Excel
 
-Excel được parse **trong browser** (SheetJS `xlsx@0.18.5`), kết quả `ImportResult`
-được gửi tới `POST /api/accounts/import`. Quy tắc nền ở `AGENTS.md` mục 8.
+Excel được parse **trong browser** (SheetJS `xlsx@0.20.3` cài từ CDN chính thức của
+SheetJS — bản trên npm có lỗ hổng), kết quả `ImportResult` được gửi tới
+`POST /api/accounts/import`. Quy tắc nền ở `AGENTS.md` mục 8.
 
 ## Bản đồ file
 
 | Phần | File |
 | --- | --- |
-| Parser + export | `src/utils/excel.ts` |
+| Parser, kiểm tra file, export | `src/utils/excel.ts` |
 | Test parser | `src/utils/excel.test.ts` (workbook tạo trong memory) |
-| UI chọn file, preview, replace | `src/components/ImportDialog.tsx` |
-| Gửi import / export | `src/components/AccountManagementPage.tsx`, `src/lib/account-api.ts` |
-| Server upsert/replace | `app/api/accounts/import/route.ts` |
+| Wizard nhập 4 bước, dialog xuất | `src/components/excel-dialogs.tsx` |
+| Gọi API | `src/lib/account-api.ts` (`importAccounts`, `exportAccounts`) |
+| Logic server (prepare, merge, create-only, replace) | `src/lib/import-service.ts` |
+| Route | `app/api/accounts/import/route.ts`, `app/api/accounts/export/route.ts` |
+| Test server | `test/lib/import-service.test.ts`, `test/api/account-routes.test.ts` |
 | Fixture giả | `scripts/create-import-fixture.mjs` → `test/fixtures/import-accounts.xlsx` |
 
 `excel.ts` chỉ được nạp bằng `await import('../utils/excel')` để SheetJS không vào
 bundle khởi động. Không import tĩnh file này từ component client.
 
-## Thuật toán hiện tại (đọc kỹ trước khi sửa)
+## Thuật toán phía client (đọc kỹ trước khi sửa)
 
+0. `validateExcelFile`: chỉ `.xlsx/.xls/.csv`, ≤ 5 MB, đúng chữ ký nhị phân (zip `PK`,
+   OLE `D0 CF 11 E0`, csv không có byte 0). `parseExcelFile` tắt công thức/HTML/style,
+   tối đa 20 sheet × 5000 dòng.
 1. Mỗi sheet → `sheet_to_json({ header: 1, raw: false, defval: null, blankrows: false })`.
 2. Nếu trong 15 dòng đầu có ô `ten tuong` **và** trong 12 dòng đầu có ô username
    → chỉ chạy `parseColumnMatrix`. Ngược lại chạy `parseFlatTable` và
@@ -31,7 +37,8 @@ bundle khởi động. Không import tĩnh file này từ component client.
 3. Điểm `accountScore = 5 × số account + 3 × số account có password + tổng số hero`.
    Sheet có điểm cao nhất được chọn.
 4. Hậu xử lý trong `parseWorkbook`: bỏ username rỗng; loại trùng theo
-   `normalizeText(username)`; bỏ account không có hero; cảnh báo password rỗng.
+   `usernameDedupeKey` (trim + lowercase — KHÔNG dùng `normalizeText` vì sẽ gộp
+   `user.a`/`user-a`); bỏ tài khoản không có tướng; cảnh báo mật khẩu rỗng.
    Mọi lần bỏ/cảnh báo đều đẩy message vào `errors`.
 
 Header luôn so khớp sau `normalizeText`:
@@ -44,10 +51,27 @@ Header luôn so khớp sau `normalizeText`:
   `level`/`cap`, `rank`/`hang`, `tinh trang`/`status`; hero dưới ô `ten tuong`.
 - Marker sở hữu (sau normalize): `x`, `1`, `co`, `yes`, `true`.
 
-Server (`import/route.ts`): validate `accounts` là mảng không rỗng, `replace` là
-boolean; chạy `normalizeAccountInput` từng dòng (lỗi → 400 kèm số dòng); trong một
-`prisma.$transaction` (timeout 120s): nếu `replace` thì `deleteMany()` rồi upsert
-tuần tự theo `username`. Trả `{ imported, warnings }`.
+## Server
+
+`parseImportRequest`: `mode` ∈ `merge | create-only | replace` (cờ cũ `replace: true`
+được hiểu là replace và vẫn phải xác nhận), ≤ 2000 dòng, body ≤ 4 MB (413).
+`prepareRows`: `normalizeAccountInput` từng dòng; dòng lỗi và username trùng trong
+file (trim + lowercase) bị bỏ và ghi cảnh báo. Trả `ImportSummary`
+`{ mode, received, created, updated, skipped, invalid, deleted, warnings }`.
+
+| Chế độ | Hành vi |
+| --- | --- |
+| `merge` (mặc định) | Khớp username trim+lowercase: 0 khớp → tạo; 1 khớp → cập nhật bản ghi đó, **giữ username đang lưu**; ≥ 2 khớp (biến thể hoa/thường có sẵn) → bỏ qua + cảnh báo. Không xoá gì. |
+| `create-only` | Như merge nhưng KHÔNG cập nhật bản ghi đã có (dùng cho migrate IndexedDB cũ). |
+| `replace` | Cần phiên xác thực lại ≤ 5 phút + `confirm.phrase` = "THAY THẾ" + `confirm.expectedCount`. Mọi dòng phải hợp lệ. Trong một transaction: `LOCK TABLE`, đếm, lệch → 409 `COUNT_MISMATCH`, rồi `deleteMany` + `createMany`. Lỗi → rollback. |
+
+Wizard client: mount mới mỗi lần mở (không giữ kết quả/chế độ cũ), mặc định Gộp,
+Thay thế phải gõ "THAY THẾ" và có tuỳ chọn tải bản sao lưu (kèm mật khẩu, qua
+`/api/accounts/export`) trước khi gửi. Màn kết quả hiển thị tổng kết và cảnh báo máy chủ.
+
+Export: `POST /api/accounts/export` mặc định không kèm mật khẩu; `includePasswords`
+cần xác thực lại. File được tạo bằng `exportAccountsToExcel(rows, includePasswords, stem)`
+ngay trong trình duyệt, không upload đi đâu.
 
 ## Quy trình thêm định dạng mới
 
@@ -62,32 +86,17 @@ tuần tự theo `username`. Trả `{ imported, warnings }`.
    nhiều sheet (sheet nhiễu + sheet đúng); dòng thiếu username; username trùng;
    password rỗng (cảnh báo, vẫn import); hero lạ (giữ nguyên); marker `có`/`TRUE`.
 5. Chạy `npm test` (xem lưu ý Windows trong skill `aov-testing`), `npm run lint`,
-   `npm run typecheck`, `npm run build`.
+   `npm run typecheck`, `npm run build`, và `scripts/qa/ui-qa.mjs` nếu đổi wizard.
 
-## Chế độ gộp và thay thế
+## Lưu ý
 
-- Gộp (mặc định): upsert theo `username`, **không** xoá account không có trong file.
-  Upsert ghi đè toàn bộ trường của account trùng username (kể cả password rỗng).
-- Thay thế: xoá toàn bộ rồi nhập lại trong **cùng** transaction. Mọi thay đổi ở
-  đây phải giữ nguyên tính nguyên tử và yêu cầu người dùng chọn rõ ràng.
-- Không bao giờ chạy import thử với `replace: true` trên database thật.
-
-## Bẫy đã biết
-
-- `ImportDialog` chỉ `return null` khi đóng nên state (`result`, `replace`) vẫn giữ
-  giữa các lần mở: checkbox "Xoá dữ liệu hiện tại" có thể còn được tick từ lần trước.
-- Replace chỉ có một checkbox, không có bước xác nhận thứ hai.
-- Client bỏ qua `warnings` server trả về (`importAccounts` chỉ đọc `imported`).
-- Loại trùng username bằng `normalizeText` gộp cả các username chỉ khác dấu câu
-  (`user.a` và `user-a` → `user a`): username thứ hai bị bỏ (có cảnh báo).
-- Server không giới hạn số dòng/kích thước payload.
-- Export (`exportAccountsToExcel`) ghi password dạng plaintext vào file `.xlsx`.
-- `xlsx@0.18.5` trên npm có lỗ hổng đã công bố (prototype pollution, ReDoS) — bản
-  vá chỉ phát hành qua CDN của SheetJS. Không tự đổi dependency; nêu trong báo cáo
-  nếu thay đổi của bạn liên quan.
+- Merge ghi đè toàn bộ trường của tài khoản khớp bằng dữ liệu trong file (kể cả
+  mật khẩu rỗng) — đây là nghiệp vụ hiện tại; muốn đổi phải hỏi người dùng.
+- Không bao giờ chạy import thử với `replace` trên database thật. Preview và
+  Production đang dùng chung database.
 
 ## Bảo mật
 
 Fixture/test chỉ dùng dữ liệu giả (`fixture-user`, `codex-import-fixture-01`). Log
-server không được chứa password; hạn chế log username. Khi sửa replace, export
-hoặc log, chạy thêm checklist của skill `account-security`.
+server chỉ ghi tên/mã lỗi (`logSafe`), không ghi username/password. Khi sửa replace,
+export hoặc log, chạy thêm checklist của skill `account-security`.

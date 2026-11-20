@@ -67,9 +67,12 @@ description: Quy trình an toàn cho Prisma 7 + Neon Postgres + Vercel trong rep
 ## Biến môi trường và Vercel
 
 - Local: `.env.local` (đã gitignore). `.env.example` chỉ chứa placeholder.
-- Vercel: Project Settings → Environment Variables, đặt `DATABASE_URL` riêng cho
-  Development, Preview, Production. Khuyến nghị Preview dùng Neon branch riêng
-  (không trỏ production) vì app chưa có xác thực.
+- Vercel hiện có `DATABASE_URL` (loại Secret, không đọc lại được) dùng **chung cho Preview
+  và Production** → Preview deployment đọc/ghi database production. Khuyến nghị tách
+  Neon branch cho Preview; tới lúc đó tuyệt đối không ghi thử nghiệm trên Preview.
+- Xác thực: `AUTH_SESSION_SECRET` (riêng mỗi môi trường) và `AUTH_OWNER_PASSWORD_HASH`.
+  Thêm bằng `vercel env add <TÊN> <production|preview> --sensitive`, giá trị truyền qua
+  stdin từ `scripts/auth-setup.mjs` (không in ra terminal/log).
 - Không đặt connection string dưới tên `NEXT_PUBLIC_*`, không đưa vào Build Command,
   source, log hay tài liệu.
 - Thêm/đổi tên biến: ghi tên (không ghi giá trị) trong PR và `.env.example`.

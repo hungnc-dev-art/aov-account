@@ -6,12 +6,27 @@ description: Checklist và quy trình review bảo mật/an toàn dữ liệu ch
 # Account Security Review
 
 App lưu **username/password game dạng plaintext có thể đọc lại** (nghiệp vụ cần
-copy password) và **chưa có xác thực**. Mọi review phải xuất phát từ hai sự thật này.
+copy password). Lớp bảo vệ hiện có — mọi thay đổi phải giữ nguyên hoặc mạnh hơn:
+
+| Lớp | Cơ chế | Code |
+| --- | --- | --- |
+| Edge | Vercel Authentication (All Deployments) + WAF rate-limit rule cho `/api/auth/*` | Dashboard / API Vercel |
+| Phiên | Mật khẩu chủ sở hữu (scrypt trong `AUTH_OWNER_PASSWORD_HASH`), token HMAC-SHA256 (`AUTH_SESSION_SECRET`), cookie HttpOnly + SameSite=Strict + Secure + `__Host-`, hết hạn 12 giờ; thiếu env → từ chối hết | `src/lib/auth/*` |
+| Route | `requireOwner` ở MỌI handler (không chỉ `proxy.ts`); ghi: cùng origin + JSON; đọc: chặn `Sec-Fetch-Site: cross-site` | `src/lib/auth/guard.ts` |
+| Nhạy cảm | Replace / export kèm mật khẩu: xác thực lại ≤ 5 phút; replace thêm "THAY THẾ" + `expectedCount` + khoá bảng | `import-service.ts`, `export/route.ts` |
+| Mật khẩu game | Không có trong danh sách; lấy từng cái qua `/api/accounts/:id/password` khi bấm | `PasswordSecret` |
+| Lỗi/log | `errorResponse` trả message chung; `logSafe` chỉ ghi tên/mã lỗi | `src/lib/http.ts` |
+| Header | CSP có nonce (`proxy.ts`), XFO DENY, nosniff, no-referrer, HSTS, tắt `X-Powered-By` | `next.config.ts` |
+
+Rotate `AUTH_SESSION_SECRET` = đăng xuất mọi phiên. Đổi mật khẩu chủ sở hữu: sinh hash
+mới bằng `node scripts/auth-setup.mjs hash` rồi cập nhật env và redeploy.
 
 ## Nguyên tắc mặc định
 
 - Review-only: ghi nhận, phân loại, đề xuất. Không tự đổi cách lưu password, không
   tự thêm/đổi thiết kế authentication khi người dùng chưa yêu cầu.
+- Route mới chạm dữ liệu account phải gọi `requireOwner` và có test 401/403/415 trong
+  `test/api/` (xem `test/helpers/api.ts`).
 - Không chạy thao tác ghi/xoá trên database thật; không gọi `DELETE` hay import
   `replace` để "thử". Ưu tiên đọc code; nếu cần gọi API, chỉ trên môi trường dev
   đã được người dùng xác nhận.

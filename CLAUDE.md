@@ -9,11 +9,12 @@ sửa trong `.claude/skills/<skill>/SKILL.md`.
 | Tác vụ | Skill |
 | --- | --- |
 | API/form/type account, validate, index account–hero | `account-crud` |
-| Parser Excel, ImportDialog, import merge/replace, export | `import-excel` |
+| Parser Excel, wizard nhập, import merge/create-only/replace, export | `import-excel` |
 | Dữ liệu/ảnh/kỹ năng tướng, script Garena, UI catalog | `hero-catalog` |
+| Mọi thay đổi UI/style/theme/component/responsive/a11y (Graphite Command) | `aov-design-system` |
 | Prisma schema/migration, Neon, biến môi trường, deploy Vercel | `neon-prisma` |
-| Review bảo mật, credential, thao tác phá huỷ | `account-security` |
-| Chạy/viết test, xác minh trước bàn giao, lỗi môi trường Windows | `aov-testing` |
+| Auth owner session, review bảo mật, credential, thao tác phá huỷ | `account-security` |
+| Chạy/viết test, QA trình duyệt, xác minh trước bàn giao, lỗi Windows | `aov-testing` |
 
 Skill dùng chung ở phạm vi user (không sao chép vào repo): `vercel-react-best-practices`
 cho hiệu năng React/Next, `web-design-guidelines` cho review UI/a11y.

@@ -73,14 +73,14 @@ sang fetch lúc runtime (CORS, độ ổn định).
 
 ## UI catalog
 
-- `App.tsx` render toàn bộ ~129 tướng trong `.hero-catalog-grid` (10 cột desktop,
-  breakpoint trong `src/style.css`), lọc bằng `fuzzyMatch` trong `useMemo`, chưa
-  debounce/phân trang (`src/hooks/useDebounce.ts` có sẵn nhưng chưa dùng).
-- `HeroAvatar`: `loading="lazy"`, fallback 2 chữ cái khi không có `imageUrl`; ảnh
-  lỗi tải chưa có fallback `onError`.
-- `HeroDetails`: modal desktop/bottom sheet mobile, bảng account sở hữu có hiện/copy
-  password (xem skill `account-security`).
-- Khi tối ưu hiệu năng render/bundle, tham khảo skill `vercel-react-best-practices`
-  (nhóm `rerender-*`, `rendering-content-visibility`, `js-*`); khi review UI/a11y
-  dùng `web-design-guidelines`. Mọi thay đổi style phải chạy đúng ở light/dark
-  (`:root` và `:root[data-theme='dark']`) và mobile/desktop.
+- `src/components/catalog.tsx`: KPI độ phủ (đã có / chưa có tài khoản), tìm kiếm
+  `fuzzyMatch` + `useDeferredValue`, lọc vai trò/sở hữu, sắp xếp; lưới
+  `content-visibility: auto` (chỉ `contain-intrinsic-height`), 12 ảnh đầu `eager`.
+- `HeroAvatar` (trong `ui.tsx`): có `width`/`height`, `onError` → chữ viết tắt. Avatar nguồn
+  120px: không phóng to quá ~140px.
+- `src/components/hero-drawer.tsx`: drawer/bottom sheet, tab Tài khoản sở hữu (mặc định
+  khi có/đang tải) và Kỹ năng; mật khẩu qua `PasswordSecret`.
+- Index chủ sở hữu: `buildOwnerIndex` trong `src/lib/catalog.ts` (Set theo tài khoản).
+- Quy ước giao diện: skill `aov-design-system`; hiệu năng: `vercel-react-best-practices`;
+  review a11y: `web-design-guidelines`. Mọi thay đổi style phải chạy đúng light/dark và
+  mobile/desktop.

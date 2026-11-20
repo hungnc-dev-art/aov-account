@@ -26,6 +26,27 @@ Trạng thái tại commit `0807b1c` (branch `main`). Dùng để so sánh ở l
 Kiểm chứng ngày 2026-11-21 (sandbox, DB giả): xem `docs/audit/2026-11-21-phase2-security-stability.md`
 và `docs/audit/2026-11-21-phase2-evidence.md`.
 
+## Trạng thái sau release Graphite Command (branch `feat/graphite-command-secure-release`)
+
+| ID | Trạng thái | Cách xử lý / kiểm chứng |
+| --- | --- | --- |
+| S1 | Đã xử lý | Owner session + `requireOwner` ở mọi handler + `proxy.ts`; test 401 cho 7 route |
+| S2 | Đã xử lý | Danh sách chỉ trả `hasPassword`; mật khẩu lấy từng cái qua `/api/accounts/:id/password` |
+| S3 | Đã xử lý | Replace cần xác thực lại + "THAY THẾ" + `expectedCount`, khoá bảng, rollback; test |
+| S4 | Đã xử lý | DELETE cần phiên + cùng origin |
+| S5 | **Còn** (chấp nhận) | Mã hoá at-rest cần đổi cách lưu → quyết định riêng của chủ sở hữu |
+| S6 | Đã xử lý | `xlsx@0.20.3` từ CDN SheetJS (integrity đã đối chiếu) + kiểm tra file/giới hạn kích thước |
+| S7 | Đã xử lý | `errorResponse` trả message chung; test JSON hỏng/lỗi DB |
+| S8 | Đã xử lý | `logSafe` chỉ ghi tên/mã lỗi; test không có username trong log |
+| S9 | Đã xử lý | ≤ 2000 dòng, body ≤ 4 MB, transaction 60s; rate limit đăng nhập (WAF + instance) |
+| S10 | Đã xử lý | Export mặc định không kèm mật khẩu; kèm mật khẩu cần xác thực lại + cảnh báo |
+| S11 | Đã xử lý | Wizard mount mới mỗi lần mở; QA end-to-end kiểm |
+| S12 | **Còn** (vận hành) | Preview và Production dùng chung `DATABASE_URL`; `.env.local` chưa xác minh trỏ đâu |
+| S13 | Đã xử lý | CSP nonce + header bảo mật; `X-Powered-By` tắt |
+| S14/S16 | Đã xử lý | Route ghi bắt buộc cùng origin + `application/json` (403/415); cookie SameSite=Strict |
+| S15 | Đã xử lý | `.vercel` trong `.gitignore` |
+| S17 | Đã xử lý | `npm run dev` bind 127.0.0.1 |
+
 Đã kiểm tra, không phát hiện vấn đề:
 
 - Không có `NEXT_PUBLIC_*` chứa secret; `DATABASE_URL` chỉ đọc ở server (`src/lib/prisma.ts`, `prisma.config.ts`).
