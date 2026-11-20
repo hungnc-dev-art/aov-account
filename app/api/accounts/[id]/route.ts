@@ -1,72 +1,44 @@
-import { Prisma } from '../../../../src/generated/prisma/client'
-import {
-  normalizeAccountInput,
-  serializeAccount,
-} from '../../../../src/lib/accounts'
+import { normalizeAccountInput, parseAccountId, toPublicAccount } from '../../../../src/lib/accounts'
+import { requireOwner } from '../../../../src/lib/auth/guard'
+import { errorResponse, json, jsonError, readJson } from '../../../../src/lib/http'
 import { prisma } from '../../../../src/lib/prisma'
 
 export const runtime = 'nodejs'
 
-function parseId(value: string): number | undefined {
-  const id = Number(value)
-  return Number.isInteger(id) && id > 0 ? id : undefined
-}
+type Context = { params: Promise<{ id: string }> }
 
-export async function PUT(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
-  const id = parseId((await context.params).id)
-  if (!id) return Response.json({ error: 'ID không hợp lệ.' }, { status: 400 })
-
+export async function PUT(request: Request, context: Context) {
+  const guard = await requireOwner(request, { write: true })
+  if (!guard.ok) return guard.response
+  const id = parseAccountId((await context.params).id)
+  if (!id) return jsonError(400, 'INVALID_ID', 'ID tài khoản không hợp lệ.')
   try {
-    const input = normalizeAccountInput(await request.json())
-    const account = await prisma.account.update({ where: { id }, data: input })
-    return Response.json({ account: serializeAccount(account) })
+    // Không gửi `password` = giữ nguyên mật khẩu đang lưu.
+    const { password, ...input } = normalizeAccountInput(await readJson(request), { passwordOptional: true })
+    const duplicate = await prisma.account.findFirst({
+      where: { username: { equals: input.username, mode: 'insensitive' }, NOT: { id } },
+      select: { id: true },
+    })
+    if (duplicate) return jsonError(409, 'USERNAME_TAKEN', 'Tên đăng nhập đã tồn tại (không phân biệt hoa/thường).')
+    const account = await prisma.account.update({
+      where: { id },
+      data: password === undefined ? input : { ...input, password },
+    })
+    return json({ account: toPublicAccount(account) })
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return Response.json(
-          { error: 'Không tìm thấy tài khoản.' },
-          { status: 404 },
-        )
-      }
-      if (error.code === 'P2002') {
-        return Response.json(
-          { error: 'Tên đăng nhập đã tồn tại.' },
-          { status: 409 },
-        )
-      }
-    }
-    const message =
-      error instanceof Error ? error.message : 'Không thể cập nhật tài khoản.'
-    return Response.json({ error: message }, { status: 400 })
+    return errorResponse(error, 'accounts:update')
   }
 }
 
-export async function DELETE(
-  _request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
-  const id = parseId((await context.params).id)
-  if (!id) return Response.json({ error: 'ID không hợp lệ.' }, { status: 400 })
-
+export async function DELETE(request: Request, context: Context) {
+  const guard = await requireOwner(request, { write: true })
+  if (!guard.ok) return guard.response
+  const id = parseAccountId((await context.params).id)
+  if (!id) return jsonError(400, 'INVALID_ID', 'ID tài khoản không hợp lệ.')
   try {
     await prisma.account.delete({ where: { id } })
-    return Response.json({ success: true })
+    return json({ success: true })
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2025'
-    ) {
-      return Response.json(
-        { error: 'Không tìm thấy tài khoản.' },
-        { status: 404 },
-      )
-    }
-    return Response.json(
-      { error: 'Không thể xoá tài khoản.' },
-      { status: 400 },
-    )
+    return errorResponse(error, 'accounts:delete')
   }
 }
