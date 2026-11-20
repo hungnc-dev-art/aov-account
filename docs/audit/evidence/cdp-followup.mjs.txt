@@ -1,0 +1,47 @@
+const [port, origin] = process.argv.slice(2)
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json()
+const ws = new WebSocket(target.webSocketDebuggerUrl)
+await new Promise((r) => (ws.onopen = r))
+let seq = 0
+const pending = new Map()
+const exceptions = []
+const requests = []
+ws.onmessage = async (event) => {
+  const msg = JSON.parse(event.data)
+  if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg.result); pending.delete(msg.id); return }
+  if (msg.method === 'Runtime.exceptionThrown') {
+    const d = msg.params.exceptionDetails
+    exceptions.push({ text: d.exception?.description?.split('\n').slice(0, 4).join(' | '), url: d.url, frames: d.stackTrace?.callFrames?.slice(0, 3).map((f) => `${f.functionName}@${f.url.split('/').slice(-2).join('/')}:${f.lineNumber}`) })
+  }
+  if (msg.method === 'Fetch.requestPaused') {
+    const { requestId, request } = msg.params
+    requests.push(`${request.method} ${new URL(request.url).pathname}`)
+    if (request.method === 'GET') {
+      const body = Buffer.from(JSON.stringify({ accounts: [{ id: 1, username: 'fixture-user-01', password: '', nickname: '', gold: '', level: '', rank: '', status: '', heroes: ['Nakroth'], heroNamesNormalized: ['nakroth'], note: '', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' }] })).toString('base64')
+      send('Fetch.fulfillRequest', { requestId, responseCode: 200, responseHeaders: [{ name: 'content-type', value: 'application/json' }], body })
+    } else send('Fetch.continueRequest', { requestId })
+  }
+}
+const send = (method, params = {}) => new Promise((resolve) => { const id = ++seq; pending.set(id, resolve); ws.send(JSON.stringify({ id, method, params })) })
+const evaluate = async (expression) => (await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result?.value
+await send('Runtime.enable')
+await send('Fetch.enable', { patterns: [{ urlPattern: '*/api/accounts*', requestStage: 'Request' }] })
+
+// A: IndexedDB legacy vẫn còn trong profile từ T7 → GET đã được mock trả 1 account
+await send('Page.navigate', { url: `${origin}/#accounts` })
+await sleep(4500)
+const legacy = {
+  requests: [...requests],
+  countText: await evaluate(`document.querySelector('.management-heading div p:last-of-type')?.innerText`),
+  cards: await evaluate(`document.querySelectorAll('.account-card').length`),
+}
+
+// B: xoá IndexedDB + không mock → GET 500 thật, lấy stack exception
+await send('Fetch.disable')
+await evaluate(`new Promise((r) => { const q = indexedDB.deleteDatabase('AovAccountManager'); q.onsuccess = q.onerror = () => r(true) })`)
+exceptions.length = 0
+await send('Page.navigate', { url: `${origin}/#accounts` })
+await sleep(4500)
+console.log(JSON.stringify({ legacy, getErrorExceptions: exceptions }, null, 2))
+ws.close()

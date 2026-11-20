@@ -21,18 +21,23 @@ Khi làm việc trong repository, đọc và áp dụng theo thứ tự sau:
 1. Yêu cầu hiện tại của người dùng.
 2. File `AGENTS.md` này.
 3. Tài liệu ngữ cảnh trong `.agents/context/`.
-4. Hướng dẫn nghiệp vụ phù hợp trong `.agents/skills/`.
+4. Hướng dẫn nghiệp vụ phù hợp trong `.claude/skills/<skill>/SKILL.md`.
 5. Code và test hiện có trong repository.
 
 Các tài liệu nội bộ quan trọng:
 
 - `.agents/context/product.md`: mục tiêu sản phẩm và luồng sử dụng chính.
 - `.agents/context/data-model.md`: mô hình Account, Hero và quy tắc normalize.
-- `.agents/skills/account-crud.md`: quy tắc CRUD account.
-- `.agents/skills/import-excel.md`: các định dạng Excel và quy tắc import.
-- `.agents/skills/hero-catalog.md`: cấu trúc catalog và liên kết account–hero.
-- `.agents/skills/update-hero-data.md`: quy trình cập nhật dữ liệu tướng.
-- `.agents/skills/deploy-vercel-neon.md`: Prisma, Neon và triển khai Vercel.
+- `.claude/skills/account-crud/SKILL.md`: quy trình CRUD account và API.
+- `.claude/skills/import-excel/SKILL.md`: các định dạng Excel, import và export.
+- `.claude/skills/hero-catalog/SKILL.md`: catalog, cập nhật dữ liệu tướng và
+  liên kết account–hero.
+- `.claude/skills/neon-prisma/SKILL.md`: Prisma, migration, Neon và triển khai Vercel.
+- `.claude/skills/account-security/SKILL.md`: checklist review bảo mật và dữ liệu.
+- `.claude/skills/aov-testing/SKILL.md`: chạy/viết test và xác minh trước bàn giao.
+
+Các file trên là Markdown thường, agent nào cũng đọc được. `.agents/skills/*.md`
+chỉ còn là con trỏ tới các file này để giữ tương thích đường dẫn cũ.
 
 Chỉ đọc file `.env.local` khi thực sự cần kiểm tra cấu hình. Tuyệt đối không in,
 log, sao chép hoặc đưa giá trị bí mật vào câu trả lời, commit hay tài liệu.
@@ -206,8 +211,8 @@ tạo workbook trong memory tại `src/utils/excel.test.ts`.
 
 - Runtime catalog được export từ `src/data/heroes.ts`.
 - Dữ liệu crawl/generated nằm trong `src/data/heroes.generated.ts`.
-- Điều chỉnh thủ công tách riêng trong `src/data/heroes.manual.ts` nếu luồng hiện
-  tại hỗ trợ.
+- `src/data/heroes.manual.ts` là seed cũ, hiện **không** được import ở runtime.
+  Muốn điều chỉnh thủ công phải bổ sung bước merge rõ ràng trong `heroes.ts`.
 - Không sửa trực tiếp file generated; dùng `npm run heroes:update`.
 - Ảnh và icon phải nằm dưới `public/heroes/<hero-id>/` và được lazy-load ở UI.
 - `id` phải ổn định; `normalizedName` phải sinh bằng `normalizeText(name)`.

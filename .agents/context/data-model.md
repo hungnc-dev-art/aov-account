@@ -1,6 +1,7 @@
 # Data Model
 
-Schema chuẩn nằm trong `src/types.ts`.
+Schema database chuẩn nằm trong `prisma/schema.prisma`; type nghiệp vụ dùng chung
+nằm trong `src/types.ts`.
 
 ## Account
 

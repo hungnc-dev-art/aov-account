@@ -1,0 +1,11 @@
+import * as XLSX from 'xlsx'
+
+const rows = [
+  ['username', 'password', 'heroes'],
+  ['fixture-import-a', '', 'Nakroth'],
+  ['fixture-import-b', 'fixture-pass', 'Krixi'],
+]
+const workbook = XLSX.utils.book_new()
+XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), 'Accounts')
+XLSX.writeFile(workbook, process.argv[2])
+console.log('ok')
