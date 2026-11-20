@@ -155,6 +155,15 @@ describe('create / update / delete', () => {
     expect(db.account.update.mock.calls[1][0].data.password).toBe('moi')
   })
 
+  it('keeps optional fields that the update body omits instead of blanking them', async () => {
+    db.account.findFirst.mockResolvedValue(null)
+    db.account.update.mockResolvedValue(row(4, 'demo.c'))
+    await updateAccount(makeRequest('/api/accounts/4', { method: 'PUT', cookie, body: { username: 'demo.c', nickname: 'Mới', heroes: ['Nakroth'] } }), routeContext('4'))
+    const data = db.account.update.mock.calls[0][0].data
+    expect(data).toMatchObject({ username: 'demo.c', nickname: 'Mới', heroes: ['Nakroth'], heroNamesNormalized: ['nakroth'] })
+    for (const kept of ['gold', 'level', 'rank', 'status', 'note', 'password']) expect(data).not.toHaveProperty(kept)
+  })
+
   it('maps missing records and bad ids', async () => {
     db.account.delete.mockRejectedValue(Object.assign(new Error('Record not found'), { code: 'P2025' }))
     expect((await deleteAccount(makeRequest('/api/accounts/99', { method: 'DELETE', cookie }), routeContext('99'))).status).toBe(404)
