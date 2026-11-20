@@ -1,6 +1,12 @@
 import * as XLSX from 'xlsx'
-import type { Account, ImportResult } from '../types'
+import type { AccountExportRow, AccountImportRow, ImportResult } from '../types'
 import { normalizeText, splitHeroes } from './normalize'
+
+type Account = AccountImportRow
+
+/** Giới hạn an toàn cho file người dùng chọn (parse trong trình duyệt). */
+export const EXCEL_LIMITS = { maxBytes: 5 * 1024 * 1024, maxSheets: 20, maxRowsPerSheet: 5000 }
+const ALLOWED_EXTENSIONS = ['.xlsx', '.xls', '.csv']
 
 type Cell = string | number | boolean | Date | null | undefined
 type Row = Cell[]
@@ -34,9 +40,6 @@ function isOwnershipMarker(value: Cell): boolean {
 function createAccount(
   input: Partial<Account> & Pick<Account, 'username' | 'password' | 'heroes'>,
 ): Account {
-  const timestamp = new Date().toISOString()
-  const heroes = splitHeroes(input.heroes.join(','))
-
   return {
     username: input.username.trim(),
     password: input.password,
@@ -45,12 +48,14 @@ function createAccount(
     level: input.level ?? '',
     rank: input.rank ?? '',
     status: input.status ?? '',
-    heroes,
-    heroNamesNormalized: heroes.map(normalizeText),
+    heroes: splitHeroes(input.heroes.join(',')),
     note: input.note ?? '',
-    createdAt: timestamp,
-    updatedAt: timestamp,
   }
+}
+
+/** Khoá loại trùng username trong file: trim + lowercase (giống server), không gộp dấu câu (B10). */
+export function usernameDedupeKey(username: string): string {
+  return username.trim().toLowerCase()
 }
 
 function parseColumnMatrix(rows: Row[]): Account[] {
@@ -188,7 +193,7 @@ function accountScore(accounts: Account[]): number {
 }
 
 export function parseWorkbook(workbook: XLSX.WorkBook): ImportResult {
-  const candidates = workbook.SheetNames.map((sourceSheet) => {
+  const candidates = workbook.SheetNames.slice(0, EXCEL_LIMITS.maxSheets).map((sourceSheet) => {
     const sheet = workbook.Sheets[sourceSheet]
     const rows = XLSX.utils.sheet_to_json<Row>(sheet, {
       header: 1,
@@ -213,7 +218,7 @@ export function parseWorkbook(workbook: XLSX.WorkBook): ImportResult {
     return {
       accounts: [],
       errors: [
-        'Không tìm thấy bảng account hợp lệ. Cần có username và danh sách tướng.',
+        'Không tìm thấy bảng tài khoản hợp lệ. File cần có cột username và danh sách tướng (hoặc ma trận tướng × tài khoản).',
       ],
       sourceSheet: '',
     }
@@ -222,22 +227,22 @@ export function parseWorkbook(workbook: XLSX.WorkBook): ImportResult {
   const seen = new Set<string>()
   const errors: string[] = []
   const accounts = best.accounts.filter((account, index) => {
-    const key = normalizeText(account.username)
+    const key = usernameDedupeKey(account.username)
     if (!key) {
       errors.push(`Bỏ qua dòng ${index + 1}: thiếu tên đăng nhập.`)
       return false
     }
     if (seen.has(key)) {
-      errors.push(`Bỏ qua username trùng: ${account.username}`)
+      errors.push(`Bỏ qua username trùng trong file: ${account.username}`)
       return false
     }
     seen.add(key)
     if (!account.heroes.length) {
-      errors.push(`Bỏ qua account ${account.username}: chưa có tướng.`)
+      errors.push(`Bỏ qua tài khoản ${account.username}: chưa có tướng.`)
       return false
     }
     if (!account.password) {
-      errors.push(`Account ${account.username} chưa có mật khẩu.`)
+      errors.push(`Tài khoản ${account.username} chưa có mật khẩu.`)
     }
     return true
   })
@@ -245,16 +250,43 @@ export function parseWorkbook(workbook: XLSX.WorkBook): ImportResult {
   return { accounts, errors, sourceSheet: best.sourceSheet }
 }
 
+const startsWith = (bytes: Uint8Array, signature: number[]) => signature.every((byte, index) => bytes[index] === byte)
+
+/** Kiểm tra file trước khi parse: kích thước, phần mở rộng và chữ ký nhị phân. Trả lỗi hoặc null. */
+export async function validateExcelFile(file: File): Promise<string | null> {
+  const name = file.name.toLowerCase()
+  const extension = ALLOWED_EXTENSIONS.find((item) => name.endsWith(item))
+  if (!extension) return 'Chỉ hỗ trợ file .xlsx, .xls hoặc .csv.'
+  if (file.size === 0) return 'File rỗng.'
+  if (file.size > EXCEL_LIMITS.maxBytes) return `File lớn hơn ${EXCEL_LIMITS.maxBytes / 1024 / 1024} MB.`
+  const head = new Uint8Array(await file.slice(0, 1024).arrayBuffer())
+  if (extension === '.xlsx' && !startsWith(head, [0x50, 0x4b, 0x03, 0x04])) return 'File .xlsx không đúng định dạng (không phải bảng tính Excel).'
+  if (extension === '.xls' && !startsWith(head, [0xd0, 0xcf, 0x11, 0xe0]) && !startsWith(head, [0x50, 0x4b, 0x03, 0x04])) {
+    return 'File .xls không đúng định dạng.'
+  }
+  if (extension === '.csv' && head.includes(0)) return 'File .csv chứa dữ liệu nhị phân.'
+  return null
+}
+
 export async function parseExcelFile(file: File): Promise<ImportResult> {
-  const workbook = XLSX.read(await file.arrayBuffer())
+  const workbook = XLSX.read(await file.arrayBuffer(), {
+    type: 'array',
+    cellFormula: false,
+    cellHTML: false,
+    cellStyles: false,
+    cellNF: false,
+    sheetStubs: false,
+    sheetRows: EXCEL_LIMITS.maxRowsPerSheet,
+  })
   return parseWorkbook(workbook)
 }
 
-export function exportAccountsToExcel(accounts: Account[]): void {
+/** Tạo file .xlsx ngay trong trình duyệt (không upload). Cột mật khẩu chỉ có khi được yêu cầu. */
+export function exportAccountsToExcel(accounts: AccountExportRow[], includePasswords: boolean, fileStem = `lien-quan-tai-khoan-${new Date().toISOString().slice(0, 10)}`): void {
   const rows = accounts.map((account, index) => ({
     STT: index + 1,
     username: account.username,
-    password: account.password,
+    ...(includePasswords ? { password: account.password ?? '' } : {}),
     nickname: account.nickname,
     gold: account.gold,
     level: account.level,
@@ -266,5 +298,5 @@ export function exportAccountsToExcel(accounts: Account[]): void {
   const worksheet = XLSX.utils.json_to_sheet(rows)
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Accounts')
-  XLSX.writeFile(workbook, `lien-quan-backup-${new Date().toISOString().slice(0, 10)}.xlsx`)
+  XLSX.writeFile(workbook, `${fileStem}.xlsx`)
 }

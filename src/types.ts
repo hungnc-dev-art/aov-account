@@ -22,10 +22,10 @@ export interface Hero {
   skills: HeroSkill[]
 }
 
+/** Tài khoản trả về từ GET /api/accounts. KHÔNG chứa mật khẩu (lấy riêng khi xem/sao chép). */
 export interface Account {
-  id?: number
+  id: number
   username: string
-  password: string
   nickname: string
   gold: string
   level: string
@@ -34,19 +34,59 @@ export interface Account {
   heroes: string[]
   heroNamesNormalized: string[]
   note: string
+  hasPassword: boolean
   createdAt: string
   updatedAt: string
 }
 
+/** Dữ liệu form thêm/sửa. `password` bỏ trống (undefined) khi sửa = giữ nguyên. */
 export interface AccountDraft {
   username: string
-  password: string
+  password?: string
   nickname: string
   heroes: string[]
 }
 
+/** Một dòng đọc từ Excel / IndexedDB cũ, gửi lên POST /api/accounts/import. */
+export interface AccountImportRow {
+  username: string
+  password: string
+  nickname: string
+  gold: string
+  level: string
+  rank: string
+  status: string
+  heroes: string[]
+  note: string
+}
+
 export interface ImportResult {
-  accounts: Account[]
+  accounts: AccountImportRow[]
   errors: string[]
   sourceSheet: string
+}
+
+export type ImportMode = 'merge' | 'replace' | 'create-only'
+
+export interface ImportSummary {
+  mode: ImportMode
+  received: number
+  created: number
+  updated: number
+  skipped: number
+  invalid: number
+  deleted: number
+  warnings: string[]
+}
+
+export interface AccountExportRow {
+  username: string
+  password?: string
+  nickname: string
+  gold: string
+  level: string
+  rank: string
+  status: string
+  heroes: string[]
+  note: string
 }
