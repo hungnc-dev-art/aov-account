@@ -20,6 +20,8 @@ AUTH_OWNER_PASSWORD_HASH="..."   # node scripts/auth-setup.mjs hash  (nhập m�
 ```
 
 Thiếu một trong hai biến `AUTH_*` thì app từ chối mọi truy cập (fail closed).
+Trong `.env.local`, Next.js thay thế chuỗi `$...` nên phải thêm `\` trước mỗi dấu `$` của hash
+(`scrypt\$32768\$8\$1\$...`); trên Vercel dán nguyên bản.
 
 ```bash
 npm run dev          # http://127.0.0.1:3000 (chỉ nghe trên localhost)
@@ -65,5 +67,11 @@ QA giao diện end-to-end (dữ liệu giả, không chạm DB): xem `.claude/sk
 npm run heroes:update
 npm run heroes:check
 ```
+
+Tự động: workflow `.github/workflows/update-heroes.yml` chạy mỗi ngày (03:17 giờ VN), khi bấm
+"Cập nhật tướng" trong app, hoặc chạy tay trong tab Actions. Workflow crawl Garena, chỉ commit khi
+dữ liệu/ảnh tướng đổi (sau khi qua heroes:check, typecheck, test, build) → Vercel deploy lại.
+Nút trong app cần `GITHUB_HEROES_TOKEN` (fine-grained, chỉ repo này, Actions: Read and write) trên
+Vercel; workflow phải có trên nhánh mặc định thì API `workflow_dispatch` mới gọi được.
 
 Xem thêm `.claude/skills/hero-catalog/SKILL.md`.

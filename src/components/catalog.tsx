@@ -7,6 +7,7 @@ import { fuzzyMatch, normalizeText } from '../utils/normalize'
 import { ROLES, allHeroes } from '../lib/catalog'
 import type { DataState } from '../App'
 import { Button, SearchField, Segmented, Skeleton, StateView, cx } from './ui'
+import { HeroUpdateControl } from './hero-update'
 
 type Ownership = 'all' | 'owned' | 'unowned'
 
@@ -22,7 +23,6 @@ export function CatalogPage({ ownerIndex, dataState, accountCount, onOpenHero, o
   const [query, setQuery] = useState('')
   const [role, setRole] = useState<'all' | HeroRole>('all')
   const [ownership, setOwnership] = useState<Ownership>('all')
-  const [sort, setSort] = useState<'name' | 'owners'>('name')
   const deferredQuery = useDeferredValue(query)
   const ready = dataState === 'ready'
   const ownersOf = (hero: Hero) => ownerIndex.get(hero.normalizedName)?.length ?? 0
@@ -36,7 +36,7 @@ export function CatalogPage({ ownerIndex, dataState, accountCount, onOpenHero, o
 
   const filtered = useMemo(() => {
     const normalized = normalizeText(deferredQuery)
-    const list = allHeroes.filter((hero) => {
+    return allHeroes.filter((hero) => {
       if (normalized && !fuzzyMatch(hero.normalizedName, normalized)) return false
       if (role !== 'all' && !hero.roles.includes(role)) return false
       if (ownership !== 'all' && ready) {
@@ -45,11 +45,7 @@ export function CatalogPage({ ownerIndex, dataState, accountCount, onOpenHero, o
       }
       return true
     })
-    if (sort === 'owners') {
-      return list.toSorted((a, b) => (ownerIndex.get(b.normalizedName)?.length ?? 0) - (ownerIndex.get(a.normalizedName)?.length ?? 0))
-    }
-    return list
-  }, [deferredQuery, role, ownership, sort, ownerIndex, ready])
+  }, [deferredQuery, role, ownership, ownerIndex, ready])
 
   const filtersActive = Boolean(query) || role !== 'all' || ownership !== 'all'
   const resetFilters = () => {
@@ -67,6 +63,7 @@ export function CatalogPage({ ownerIndex, dataState, accountCount, onOpenHero, o
           <h1 className="t-display">Tướng & tài khoản sở hữu</h1>
           <p className="t-secondary">Tìm tướng, xem kỹ năng và biết ngay tài khoản nào đang sở hữu.</p>
         </div>
+        <HeroUpdateControl />
       </header>
 
       <section className="kpis" aria-label="Tổng quan kho">
@@ -129,17 +126,14 @@ export function CatalogPage({ ownerIndex, dataState, accountCount, onOpenHero, o
       </div>
 
       <div className="toolbar__meta results-meta">
-        <span aria-live="polite">
+        <span className="results-meta__count tabular" aria-live="polite">
           {filtersActive ? `Hiển thị ${filtered.length} / ${allHeroes.length} tướng` : `${allHeroes.length} tướng`}
         </span>
-        <span className="results-meta__actions">
-          {filtersActive && <Button size="sm" variant="ghost" onClick={resetFilters}>Xoá bộ lọc</Button>}
-          <label className="sr-only" htmlFor="hero-sort">Sắp xếp tướng</label>
-          <select id="hero-sort" className="select select--sm" value={sort} onChange={(event) => setSort(event.target.value as 'name' | 'owners')}>
-            <option value="name">Tên A → Z</option>
-            <option value="owners">Nhiều tài khoản nhất</option>
-          </select>
-        </span>
+        {filtersActive && (
+          <span className="results-meta__actions">
+            <Button size="sm" variant="ghost" onClick={resetFilters}>Xoá bộ lọc</Button>
+          </span>
+        )}
       </div>
 
       {filtered.length ? (

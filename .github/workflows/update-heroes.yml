@@ -1,0 +1,65 @@
+name: Update heroes
+
+# Crawl danh mục tướng từ Garena; chỉ commit khi dữ liệu/ảnh tướng thật sự thay đổi.
+# Commit lên nhánh mặc định → Vercel tự deploy lại.
+# Kích hoạt: hằng ngày, nút "Cập nhật tướng" trong app (API workflow_dispatch) hoặc chạy tay trong tab Actions.
+on:
+  schedule:
+    - cron: '17 20 * * *' # 03:17 giờ Việt Nam
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-heroes
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Crawl, verify, commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Giá trị giả: build và test không kết nối database thật.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run heroes:update
+
+      - name: Detect hero changes
+        id: changes
+        # Bỏ qua hero-data-report.json: generatedAt đổi ở mọi lần chạy.
+        run: |
+          if [ -n "$(git status --porcelain -- src/data/heroes.generated.ts public/heroes)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git status --short -- src/data/heroes.generated.ts public/heroes | head -50
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Không có thay đổi dữ liệu tướng."
+          fi
+
+      - if: steps.changes.outputs.changed == 'true'
+        run: npm run heroes:check
+      - if: steps.changes.outputs.changed == 'true'
+        run: npm run typecheck
+      - if: steps.changes.outputs.changed == 'true'
+        run: npm test
+      - if: steps.changes.outputs.changed == 'true'
+        run: npm run build
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/data/heroes.generated.ts src/data/hero-data-report.json public/heroes
+          git commit -m 'chore(heroes): cập nhật dữ liệu tướng từ Garena'
+          git pull --rebase
+          git push

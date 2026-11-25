@@ -1,6 +1,6 @@
 // Lớp gọi API từ Client Component. Mọi lỗi trở thành ApiError có status + code,
 // kể cả khi server trả body không phải JSON (B3).
-import type { Account, AccountDraft, AccountExportRow, AccountImportRow, ImportMode, ImportSummary } from '../types'
+import type { Account, AccountDraft, AccountExportRow, AccountImportRow, ImportMode, HeroUpdateStatus, ImportSummary } from '../types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -88,4 +88,12 @@ export async function reauthenticate(password: string): Promise<void> {
 
 export async function logout(): Promise<void> {
   await post<{ ok: boolean }>('/api/auth/logout', {})
+}
+
+export async function getHeroUpdateStatus(): Promise<HeroUpdateStatus> {
+  return request<HeroUpdateStatus>('/api/heroes/update')
+}
+
+export async function startHeroUpdate(): Promise<void> {
+  await post<{ started: boolean }>('/api/heroes/update', {})
 }
