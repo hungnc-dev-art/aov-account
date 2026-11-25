@@ -196,6 +196,9 @@ Mọi endpoint account yêu cầu phiên chủ sở hữu; request ghi phải c�
 - `POST /api/accounts/import`: `mode` = `merge` | `create-only` | `replace`;
   replace cần xác thực lại + cụm "THAY THẾ" + `expectedCount`, chạy trong một
   transaction có khoá bảng.
+- `GET /api/heroes/update`: trạng thái lần chạy gần nhất của workflow cập nhật tướng.
+- `POST /api/heroes/update`: kích hoạt workflow `update-heroes.yml` qua GitHub API
+  (`GITHUB_HEROES_TOKEN`, không bao giờ gửi token xuống client; 409 khi đang chạy).
 - `POST /api/auth/login|logout|reauth`, `GET /api/auth/session`.
 
 Khi thêm hoặc sửa endpoint:

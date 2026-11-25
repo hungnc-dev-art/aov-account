@@ -12,8 +12,8 @@ import { pathToFileURL } from 'node:url'
 const PARAMS = { N: 2 ** 15, r: 8, p: 1 }
 
 export function hashOwnerPassword(password) {
-  if (!password || password.length < 12 || password.length > 256) {
-    return Promise.reject(new Error('Mật khẩu chủ sở hữu cần 12–256 ký tự.'))
+  if (!password || password.length < 8 || password.length > 256) {
+    return Promise.reject(new Error('Mật khẩu chủ sở hữu cần 8–256 ký tự.'))
   }
   const salt = randomBytes(16)
   return new Promise((resolve, reject) => {

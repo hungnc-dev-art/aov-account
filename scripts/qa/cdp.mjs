@@ -140,11 +140,15 @@ export class Page {
         method: request.method, url: request.url, body: request.postData,
       })
       if (delay) await sleep(delay)
-      await this.send('Fetch.fulfillRequest', {
-        requestId, responseCode: status,
-        responseHeaders: [{ name: 'content-type', value: 'application/json; charset=utf-8' }],
-        body: Buffer.from(JSON.stringify(json)).toString('base64'),
-      })
+      try {
+        await this.send('Fetch.fulfillRequest', {
+          requestId, responseCode: status,
+          responseHeaders: [{ name: 'content-type', value: 'application/json; charset=utf-8' }],
+          body: Buffer.from(JSON.stringify(json)).toString('base64'),
+        })
+      } catch {
+        // Request bị trình duyệt huỷ trong lúc trễ (điều hướng sang trang khác) → bỏ qua.
+      }
     })
   }
 }

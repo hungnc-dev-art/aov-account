@@ -46,6 +46,16 @@ khi chưa xác minh trên trang Garena — URL chi tiết có thể là slug ho�
 `skills` giữ thứ tự nội tại rồi các kỹ năng như trên trang; mô tả là text đã làm
 sạch, không lưu HTML crawl.
 
+### Cập nhật tự động (GitHub Actions)
+
+- `.github/workflows/update-heroes.yml`: cron hằng ngày + `workflow_dispatch`. Chạy
+  `heroes:update`, chỉ coi là có thay đổi khi `heroes.generated.ts` hoặc `public/heroes/` đổi
+  (`hero-data-report.json` luôn đổi `generatedAt`), rồi heroes:check/typecheck/test/build → commit
+  `chore(heroes): ...` lên nhánh mặc định → Vercel deploy lại.
+- Nút "Cập nhật tướng" (`src/components/hero-update.tsx`) gọi `POST /api/heroes/update`
+  (`src/lib/hero-update.ts`, env `GITHUB_HEROES_TOKEN`, `GITHUB_HEROES_REPO`, `GITHUB_HEROES_REF`).
+  Runtime Vercel chỉ-đọc: KHÔNG crawl/ghi file trong Route Handler.
+
 ## Khi Garena đổi HTML
 
 Selector hiện dùng trong script:

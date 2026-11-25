@@ -90,3 +90,18 @@ export interface AccountExportRow {
   heroes: string[]
   note: string
 }
+
+/** Trạng thái workflow cập nhật danh mục tướng (GET /api/heroes/update). */
+export interface HeroUpdateRun {
+  running: boolean
+  /** `success`, `failure`, `cancelled`… của GitHub; `null` khi đang chạy. */
+  conclusion: string | null
+  trigger: 'manual' | 'schedule'
+  startedAt: string | null
+  finishedAt: string | null
+}
+
+export interface HeroUpdateStatus {
+  configured: boolean
+  run: HeroUpdateRun | null
+}

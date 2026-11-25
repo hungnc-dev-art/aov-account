@@ -37,7 +37,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="vi" className={sans.variable} suppressHydrationWarning>
       <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+        {/* Trình duyệt ẩn thuộc tính nonce khỏi DOM sau khi parse → React thấy lệch khi hydrate. */}
+        <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body>{children}</body>
     </html>
